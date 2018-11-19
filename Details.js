@@ -404,7 +404,7 @@ export default class Details extends ArchiveBase {
         );
     }
 
-    itemDetailsAlsoFound() {
+    itemDetailsAlsoFound() {  //TODO-IAUX merge related-as-list from IAUX
         if (!this.itemid) return undefined; // No related to home page, TODO maybe other places dont have also found = e.g. collections
         const el = (
             <div id="also-found" className="container container-ia width-max" data-identifier={this.itemid} ></div>
