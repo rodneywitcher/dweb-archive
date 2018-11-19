@@ -16,6 +16,10 @@ import ArchiveItem from "@internetarchive/dweb-archivecontroller/ArchiveItem";
 import ArchiveFile from "@internetarchive/dweb-archivecontroller/ArchiveFile";
 import Util from './Util';
 
+//Next three needed to mingle real-react with Fake-react during transition.
+import ReactDOM from 'react-dom';
+
+
 //const DwebTransports = require('./Transports'); Not "required" because available as window.DwebTransports by separate import
 
 function deletechildren(el, keeptemplate) { //Note same function in htmlutils
@@ -453,7 +457,7 @@ export default class React  {
     }
     static addKids(element, kids) {
         /* add kids to a created element
-        kids:   Array of children
+           kids:   Array of children
         /* This is called back by loadImg after creating the tag. */
         for (let i = 0; i < kids.length; i++) {
             const child = kids[i];
@@ -462,10 +466,15 @@ export default class React  {
                 child.map((c) => element.appendChild(c.nodeType == null ?
                     document.createTextNode(c.toString()) : c))
             }
-            else {
-                element.appendChild(
-                    child.nodeType == null ?
-                        document.createTextNode(child.toString()) : child);
+            else { // Single child to add
+                const addable =
+                       child.isReactComponent ? document.createElement("span")
+                    :  (child.nodeType == null) ? document.createTextNode(child.toString())
+                    :                           child;
+                element.appendChild(addable); //
+                if (child.isReactComponent) {
+                    ReactDOM.render(child.render(), addable); // Have to render after already in the DOM, although it might not be above ?
+                }
             }
         }
         return element;

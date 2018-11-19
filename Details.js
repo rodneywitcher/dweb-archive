@@ -17,7 +17,7 @@ import React from './ReactFake';
 import AICUtil from '@internetarchive/dweb-archivecontroller/Util';
 import ArchiveBase from './ArchiveBase';
 import Tile from './Tile';
-
+import SimpleDescMeta from 'iacomponents/experimental/simple-desc-meta';
 
 export default class Details extends ArchiveBase {
     constructor({itemid = undefined, metaapi = undefined}={}) {
@@ -296,8 +296,7 @@ export default class Details extends ArchiveBase {
                         ) : ( undefined ) }
 
                         <div class="clearfix"></div>
-                        { description ? ( <div id="descript" itemprop="description" dangerouslySetInnerHTML={{__html: description}}></div> ) : ( undefined ) }
-
+                        { description ? ( new SimpleDescMeta({item: this})  ) : ( undefined ) }
                         { credits ? ( <h2 style="font-size:18px">Credits</h2> ) : ( undefined ) }
                         { credits ? ( <p class="content">{credits}</p>        ) : ( undefined ) }
 
