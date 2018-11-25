@@ -18,6 +18,7 @@ import Util from './Util';
 
 //Next three needed to mingle real-react with Fake-react during transition.
 import ReactDOM from 'react-dom';
+import RealReact from 'react'
 //TODO-IAUX try using ReactFake with strings like <SimpleDescMeta and load class
 
 //const DwebTransports = require('./Transports'); Not "required" because available as window.DwebTransports by separate import
@@ -335,6 +336,10 @@ export default class React  {
         /* First we handle cases where we dont actually build the tag requested */
 
         const kids = Array.prototype.slice.call(arguments).slice(2);
+        if (typeof tag === "function") {  // Assume its a React class for now TODO-IAUX just testing
+            const foo = RealReact.createElement(tag, attrs, ...kids); // Returns a React Element which will be rendered into DOM by addKids on el its being included into
+            return foo
+        }
         if (tag === "img" && !DwebArchive.mirror) { // We'll build a span, and set a async process to rewrite it as an img connected to a stream
             console.assert(Object.keys(attrs).includes("src")); // TODO can remove this and next line - I added this test because a) code below fails if !src, and b can't see why wouldnt have src
             if (Object.keys(attrs).includes("src")) {
@@ -459,7 +464,7 @@ export default class React  {
     }
     static addKids(element, kids) {
         /* add kids to a created element
-           kids:   Array of children
+           kids:   Array of childrenchild
         /* This is called back by loadImg after creating the tag. */
         for (let i = 0; i < kids.length; i++) {
             const child = kids[i];
@@ -468,13 +473,18 @@ export default class React  {
                 child.map((c) => element.appendChild(c.nodeType == null ?
                     document.createTextNode(c.toString()) : c))
             }
-            else { // Single child to add
+            else { // Single child to add - this next bit is fairly heuristic, should be double checked if things change.
+                // Essentially three kinds of things here.
+                // * React Elements which are objects with no accessable class - and need rendering by React
+                // * Literal strings
+                // * HTML Elements (created with createElement)
+                // * There may be a fourth type - of things that can be converted to strings, but if so I need an example
                 const addable =
-                       child.isReactComponent ? document.createElement("span")
-                    :  (child.nodeType == null) ? document.createTextNode(child.toString())
-                    :                           child;
+                    (typeof child === "string")      ? document.createTextNode(child.toString())
+                    : !(child instanceof HTMLElement) ? document.createElement("span")
+                    :                                  child;
                 element.appendChild(addable); //
-                if (child.isReactComponent) {
+                if (! ((typeof child === "string") || (child instanceof HTMLElement))) {
                     this.renderRealReact(child, addable);
                 }
             }
@@ -482,12 +492,12 @@ export default class React  {
         return element;
     }
     static renderRealReact(child, parent) {
+        // This is also used in iaux.IAReactComponent to re-render when state changes
         if ((typeof child.renderFakeElement) !== "undefined") {
             ReactDOM.unmountComponentAtNode(parent)
             //child.renderFakeElement.parentElement.removeChild(child.renderFakeElement);
         }
-        const el = ReactDOM.render(child.render(), parent); // Have to render after already in the DOM, although it might not be above ?
-        child.renderFakeElement = el;
+        const el = ReactDOM.render(child, parent); // Have to render after already in the DOM, although it might not be above ?
     }
     static domrender(els, node) { // Four cases - have/dont old/new
         let navdweb = document.getElementById('nav-dweb'); // Find the navbar element TODO-STATUS this might move

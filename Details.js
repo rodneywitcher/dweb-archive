@@ -41,7 +41,7 @@ export default class Details extends ArchiveBase {
                 </div>{/*--//.container-ia--*/}
                 {this.theatreIaWrap()} {/*This is the main-content*/}
                 {this.itemDetailsAboutJSX()}
-                {this.itemid ? new RelatedAsList({identifier: this.itemid}) : undefined }
+                {this.itemid ?  <RelatedAsList identifier={this.itemid} /> : undefined }
                 {/* should have: alsoFound here (look at end of commute.html) - but not on Directory (and maybe some other types ?collection?) */}
                 {/* should have: analytics here (look at end of commute.html) - but not on Directory (and maybe some other types ?collection?)*/}
             {/*--wrap--*/}</div>
@@ -297,7 +297,7 @@ export default class Details extends ArchiveBase {
                         ) : ( undefined ) }
 
                         <div class="clearfix"></div>
-                        { description ? ( new SimpleDescMeta({item: this})  ) : ( undefined ) }
+                        { description ?  <SimpleDescMeta item={this} />  : undefined }
                         { credits ? ( <h2 style="font-size:18px">Credits</h2> ) : ( undefined ) }
                         { credits ? ( <p class="content">{credits}</p>        ) : ( undefined ) }
 
