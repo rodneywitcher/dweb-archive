@@ -297,7 +297,8 @@ export default class Details extends ArchiveBase {
                         ) : ( undefined ) }
 
                         <div class="clearfix"></div>
-                        { description ?  <SimpleDescMeta item={this} />  : undefined }
+                        {/*-- <SimpleDescMeta has extra metadata table, need to replace with below before use--*/}
+                        { description ? ( <div id="descript" itemprop="description" dangerouslySetInnerHTML={{__html: description}}></div> ) : ( undefined ) }
                         { credits ? ( <h2 style="font-size:18px">Credits</h2> ) : ( undefined ) }
                         { credits ? ( <p class="content">{credits}</p>        ) : ( undefined ) }
 
