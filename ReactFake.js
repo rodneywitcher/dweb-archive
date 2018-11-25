@@ -18,7 +18,7 @@ import Util from './Util';
 
 //Next three needed to mingle real-react with Fake-react during transition.
 import ReactDOM from 'react-dom';
-
+//TODO-IAUX try using ReactFake with strings like <SimpleDescMeta and load class
 
 //const DwebTransports = require('./Transports'); Not "required" because available as window.DwebTransports by separate import
 
@@ -473,11 +473,19 @@ export default class React  {
                     :                           child;
                 element.appendChild(addable); //
                 if (child.isReactComponent) {
-                    ReactDOM.render(child.render(), addable); // Have to render after already in the DOM, although it might not be above ?
+                    this.renderRealReact(child, addable);
                 }
             }
         }
         return element;
+    }
+    static renderRealReact(child, parent) {
+        if ((typeof child.renderFakeElement) !== "undefined") {
+            ReactDOM.unmountComponentAtNode(parent)
+            //child.renderFakeElement.parentElement.removeChild(child.renderFakeElement);
+        }
+        const el = ReactDOM.render(child.render(), parent); // Have to render after already in the DOM, although it might not be above ?
+        child.renderFakeElement = el;
     }
     static domrender(els, node) { // Four cases - have/dont old/new
         let navdweb = document.getElementById('nav-dweb'); // Find the navbar element TODO-STATUS this might move
