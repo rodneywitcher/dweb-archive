@@ -14,6 +14,7 @@ const Url = require('url');
 const debug = require('debug')('dweb-archive');
 import ArchiveItem from "@internetarchive/dweb-archivecontroller/ArchiveItem";
 import ArchiveFile from "@internetarchive/dweb-archivecontroller/ArchiveFile";
+import ArchiveMember from "@internetarchive/dweb-archivecontroller/ArchiveMember";
 import Util from './Util';
 
 //Next three needed to mingle real-react with Fake-react during transition.
@@ -97,7 +98,10 @@ export default class React  {
             urls = [].concat(...urlarrs);  // Flatten, for now accept there might be dupes
         }
         // Its now a singular URL
-        if (url instanceof ArchiveFile) {
+        if (url instanceof ArchiveMember) {
+            // Its a member, we want the urls of the images
+            urls = await url.p_urls(); // This will be fast - just thumbnaillinks or service, wont try and ask gateway for metadata and IPFS image
+        } else if (url instanceof ArchiveFile) {
             urls = await url.p_urls();  // This could be slow, may have to get the gateway to cache the file in IPFS
         } else {
             urls = this.resolveUrls(url);  // Synchronous code will work
@@ -133,10 +137,10 @@ export default class React  {
             urls = await this.p_resolveUrls(urls); // Handles a range of urls include ArchiveFile - can be empty if fail to find any
             // Dont use magnet urls on __ia_thumb.jpg as opens many webtorrents and fails when tiling TODO this could be a parameter to p_loadImg
             urls = urls.filter(u=> !u.includes("magnet:"));
-        } else {
+        } else { // This includes ArchiveMember
             urls = await this.p_resolveUrls(urls); // Handles a range of urls include ArchiveFile - can be empty if fail to find any
         }  //Examples: [dweb:/arc/archive.org/service/foo]
-        for (i in urls) {
+        for (i in urls) { // Its unclear if this is used except in odd cases, should really push upstream as does an unneeded metadata call
             if (urls[i].includes("dweb:/arc/archive.org/services/img/")) {
                 urls[i] = await this.thumbnailUrlsFrom(urls[i].slice(35));
             }
@@ -146,10 +150,11 @@ export default class React  {
         // Three options - depending on whether can do a stream well (WEBSOCKET) or not (HTTP, IPFS); or local (File:)
         let fileurl = urls.find(u => u.startsWith("file"));
         let magneturl = urls.find(u => u.includes('magnet:'));
-        const streamUrls = await DwebTransports.p_urlsValidFor(urls, "createReadStream");
+        let streamUrls = await DwebTransports.p_urlsValidFor(urls, "createReadStream");
+        streamUrls = streamUrls.filter(u => !u.href.startsWith("ipfs:")); // IPFS too unreliable (losing data, no errors) to use for streams esp for thumbnails
         if (fileurl) {
             this._loadImgSrc(el, fileurl, cb);
-        } else if ((DwebTransports.type === "ServiceWorker") && magneturl) {
+        } else if ((DwebTransports.type === "ServiceWorker") && magneturl) { //TODO-MIRROR could possible pick up here as well
             this._loadImgSrc(el, magneturl.replace('magnet:',`${window.origin}/magnet/`), cb);
         } else if (streamUrls.length) {
             const file = {
