@@ -1,12 +1,8 @@
-import React from "./ReactFake";
-
 require('babel-core/register')({ presets: ['env', 'react']}); // ES6 JS below!
-
+import React from "./ReactFake";
 import ReactFakeComponent from './ReactFakeComponent';
 
-
 export default class ParentTileImg extends ReactFakeComponent {
-    // XXX Experimental hack to try looking like React does for <ParentTileImage>
     /* -- Not used with ReactFake yet
     static propTypes = {
         identifier: PropTypes.string,
