@@ -7,15 +7,15 @@ export default class IAReactComponent {
         this.state = {};
     }
     setState(res) {
-        console.log("XX --- IAReactComponent unexpectedly getting called");
-        if (this._isMounted) {
-            super.setState(res);
-        } else {
+        //Make sense in Real-React where its a subclass, but not here
+        //if (this._isMounted) {
+        //    super.setState(res);
+        //} else {
             Object.keys(res).forEach(k => this.state[k] = res[k]);
             // renderFakeElement is set in ReactFake to the element created, so it can be removed from React and then updated
             // it causes the item to be rerendered when setState is called e.g. after data is retrieved
             //if (typeof DwebArchive !== "undefined" && typeof this.renderFakeElement !== "undefined") { DwebArchive.ReactFake.renderRealReact(this, this.renderFakeElement.parentNode);  }
-        }
+        //}
     }
     componentDidMount() { this._isMounted = true; } // Unclear if used
 }

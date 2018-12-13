@@ -4,6 +4,7 @@ require('babel-core/register')({ presets: ['env', 'react']}); // ES6 JS below!
 import React from './ReactFake';
 import Util from './Util';
 import ParentTileImg from './components/ParentTileImg';
+import TileImage from './components/TileImage';
 
 
 export default class Tile {
@@ -19,17 +20,15 @@ export default class Tile {
     // noinspection JSUnresolvedVariable
       const collection0thumbnaillinks = member.collection0thumbnaillinks || `dweb:/arc/archive.org/services/img/${collection0}`; //ReactFake will handle async //TODO move into ArchiveMember
     // noinspection JSUnresolvedVariable
-      const collection0title = member.collection0title || collection0; // Wrong but acceptable for now
-    const imgname = member.identifier + ".PNG"; // Required since rendermedia doesnt know the filetype otherwise
+    const collection0title = member.collection0title || collection0; // Wrong but acceptable for now
     const creatorTitle = member.creator ? member.creator.join(',') : undefined;
     //ARCHIVE-BROWSER on browser, want to load links locally (via APIs) rather than rebuilding HTML page
       // ARCHIVE-BROWSER added key= to keep react happy (I hope)
       return (
       <div className={classes} data-id={member.identifier}  key={member.identifier}>
-      { (collection0) ?
+      { (collection0) ? //TODO make it work for ParentTileImage in new TileComponent then remove this condition
         <a className="stealth" tabIndex="-1" onClick={`Nav.nav_details("${collection0}");`}>
           <div className="item-parent">
-              {/*collection0thumbnaillinks wont be there for the metadata req on items in fav-xyz so use the URL and let ReactFake expand it*/}
             <div className="item-parent-img">
               <ParentTileImg member={member}/>
             </div>
@@ -47,7 +46,8 @@ export default class Tile {
           <div className="item-ttl C C2">
             <a onClick={`Nav.nav_details("${member.identifier}");`} title={member.title}>
               <div className="tile-img">
-                <img className="item-img clipW clipH" imgname={imgname} src={member}/>
+                  <TileImage className="item-img clipW clipH" imgname={"__ia_thumb.jpg"} member={member} identifier={member.identifier} />
+                  {/*<img className="item-img clipW clipH" imgname={imgname} src={member}/>*/}
               </div>{/*.tile-img*/}
               <div className="ttl">
                 {member.title}
@@ -95,7 +95,7 @@ export default class Tile {
       return (
       <div className="statbar ">
           <div className="mt-icon C C5">
-              <span className={iconnameClass} aria-hidden="true"></span><span className="sr-only">{name}</span></div>
+              <span className={iconnameClass} aria-hidden="true"></span><span className="sr-only">{member.mediatype}</span></div>
           <h6 className="stat ">
               <span className="iconochive-eye" aria-hidden="true"></span><span className="sr-only">eye</span>
               <nobr>{Util.number_format(member.downloads)}</nobr>

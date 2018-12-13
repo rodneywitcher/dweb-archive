@@ -15,6 +15,8 @@ import React from './ReactFake';
 // React requires className= rather than class=, ReactFake supports both
 
 import AICUtil from '@internetarchive/dweb-archivecontroller/Util';
+import ArchiveMemberRelated from '@internetarchive/dweb-archivecontroller/ArchiveMemberRelated';
+import TileComponent from './components/TileComponent';
 import ArchiveBase from './ArchiveBase';
 import Tile from './Tile';
 import SimpleDescMeta from 'iacomponents/experimental/simple-desc-meta';
@@ -412,4 +414,5 @@ export default class Details extends ArchiveBase {
             {/*--//.container-ia--*/} </div>
         );
     }
+
 }
