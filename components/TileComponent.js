@@ -33,6 +33,9 @@ export default class TileComponent extends IAReactComponent {
         try {
             console.assert(this.props.member, "If using loadAndSync should have a member with at least mediatype to work with");
             // We need some data for tiles, if its not found then have to fetch item metadata and then render
+            //TODO = catch cases (if-any) where this is triggered (maybe related, maybe fav-brewster) and see if can use expansion instead
+            console.assert(this.props.member.creator && this.props.member.creator.length, "next code shouldnt be needed as expand");
+            /*
             if (!(this.props.member.creator && this.props.member.creator.length)) { // This may not be best test
                 if (!this.props.item) this.props.item = new ArchiveItem({itemid: this.props.identifier});
                 if (!this.props.item.metadata) {
@@ -47,6 +50,7 @@ export default class TileComponent extends IAReactComponent {
                     return;
                 } // If metadata drop through
             }
+            */
             const member = this.props.member;
             const item = this.props.item;
             const isCollection = (member.mediatype === 'collection');
@@ -54,7 +58,7 @@ export default class TileComponent extends IAReactComponent {
             const by = member.creator || member.creatorSorter || (item && item.metadata.creator);
             const collection = member.collection || (item && item.metadata.collection); // Should be array
             const nFavorites = collection.filter(e => e.startsWith('fav-')).length;  // Jira added since cant get this any more
-            const collectionSize = 0; //TODO really hard to get https://github.com/internetarchive/dweb-archive/issues/91
+            const collectionSize = member.item_count; //TODO really hard to get https://github.com/internetarchive/dweb-archive/issues/91
             this.setState({
                 isCollection, collection0, by, nFavorites, collectionSize,
                 mediatype: member.mediatype,

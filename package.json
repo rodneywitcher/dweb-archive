@@ -9,9 +9,9 @@
   },
   "description": "Archive UI to run in Browser",
   "dependencies": {
-    "@babel/core": "^7.1.2",
-    "@internetarchive/dweb-objects": "^0.1.10",
-    "@internetarchive/dweb-transports": "^0.1.18",
+    "@babel/core": "^7.2.2",
+    "@internetarchive/dweb-objects": "^0.1.20",
+    "@internetarchive/dweb-transports": "^0.1.32",
     "@internetarchive/dweb-archivecontroller": "file:../dweb-archivecontroller",
     "@stratumn/canonicaljson": "^1.0.2",
     "debug": "^3.2.5",
@@ -19,6 +19,7 @@
     "from2": "^2.3.0",
     "iacomponents": "file:../iaux/packages/iacomponents",
     "prettier-bytes": "^1.0.4",
+    "react-dom": "^16.7.0",
     "render-media": "^3.1.3",
     "throttleit": "^1.0.0"
   },
@@ -31,12 +32,12 @@
     "chai": "^4.2.0",
     "copy-webpack-plugin": "^4.5.2",
     "http-server": "latest",
-    "react": "^16.5.2",
+    "react": "^16.7.0",
     "react-dom": "^16.6.3",
     "uglifyjs-webpack-plugin": "^1.3.0",
-    "webpack": "^4.20.2",
-    "webpack-cli": "latest",
-    "webpack-dev-server": "^3.1.9"
+    "webpack": "^4.28.3",
+    "webpack-cli": "^3.2.1",
+    "webpack-dev-server": "^3.1.14"
   },
   "homepage": "https://github.com/internetarchive/dweb-archive#readme",
   "keywords": [],
@@ -52,5 +53,5 @@
     "server": "http-server",
     "setuphttp": "ln -s ../node_modules/@internetarchive/dweb-transports/dist/dweb-transports-bundle.js dist; ln -s ../node_modules/@internetarchive/dweb-objects/dist/dweb-objects-bundle.js dist;"
   },
-  "version": "0.1.39"
+  "version": "0.1.42"
 }
