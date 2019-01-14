@@ -20,7 +20,6 @@ import TileComponent from './components/TileComponent';
 import CollectionList from './components/CollectionList';
 import ArchiveBase from './ArchiveBase';
 import SimpleDescMeta from 'iacomponents/experimental/simple-desc-meta';
-import RelatedAsList from 'iacomponents/experimental/related-as-list';
 
 export default class Details extends ArchiveBase {
     constructor({itemid = undefined, metaapi = undefined}={}) {
@@ -43,7 +42,7 @@ export default class Details extends ArchiveBase {
                 </div>{/*--//.container-ia--*/}
                 {this.theatreIaWrap()} {/*This is the main-content*/}
                 {this.itemDetailsAboutJSX()}
-                {this.itemid ?  <RelatedAsList identifier={this.itemid} /> : undefined }{/* TODO-IAUX the TileComponent does this much better} */}
+                {this.itemDetailsAlsoFound()}
                 {/* should have: alsoFound here (look at end of commute.html) - but not on Directory (and maybe some other types ?collection?) */}
                 {/* should have: analytics here (look at end of commute.html) - but not on Directory (and maybe some other types ?collection?)*/}
             {/*--wrap--*/}</div>
@@ -308,6 +307,7 @@ export default class Details extends ArchiveBase {
                         <div class="clearfix"></div>
                         {/*-- <SimpleDescMeta has extra metadata table, need to replace with below before use--*/}
                         { description ? ( <div id="descript" itemprop="description" dangerouslySetInnerHTML={{__html: description}}></div> ) : ( undefined ) }
+
                         { credits ? ( <h2 style="font-size:18px">Credits</h2> ) : ( undefined ) }
                         { credits ? ( <p class="content">{credits}</p>        ) : ( undefined ) }
 
@@ -437,5 +437,6 @@ export default class Details extends ArchiveBase {
             </div>
         ) )
     }
+
 
 }

@@ -507,7 +507,7 @@ export default class React  {
     }
     static addKids(element, child) {
         /* add kids to a created element
-           kids:   Array of childrenchild
+        kids:   Array of children
         /* This is called back by loadImg after creating the tag. */
         if (Array.isArray(child)) {
             child.forEach(k => this.addKids(element, k));

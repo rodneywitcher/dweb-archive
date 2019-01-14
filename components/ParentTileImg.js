@@ -7,7 +7,6 @@ import PropTypes from 'prop-types'
 //!IAUX version
 import React from "../ReactFake";
 import IAReactComponent from './IAReactComponent';
-
 import ArchiveItem from "@internetarchive/dweb-archivecontroller/ArchiveItem";
 
 export default class ParentTileImg extends IAReactComponent {
