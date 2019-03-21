@@ -28,7 +28,7 @@ Do the "All Case install above"
 Install a simple http-server, this may require sudo depending on permissions
 ```
 npm run setuphttp
-npm install -g http-server` 
+npm install -g http-server 
 cd dist
 http-server
 ```
