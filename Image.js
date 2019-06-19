@@ -1,17 +1,17 @@
 import Search from "./Search";
 
-require('babel-core/register')({ presets: ['env', 'react']}); // ES6 JS below!
 import React from './ReactFake';
 
 import Details from './Details';
+import TheatreControls from './components/TheatreControls';
 
 export default class Image extends Details {
-    constructor({itemid=undefined, metaapi=undefined}={}) {
+    constructor({itemid=undefined, metaapi=undefined, noCache=false}={}) {
         /*
         Construct an Image object before rendering it to a HTML page
         item = metadata from a metadata fetch
          */
-        super({ itemid, metaapi});
+        super({ itemid, metaapi, noCache});
         this.itemtype = "http://schema.org/VisualArtwork";
     }
     archive_setup_push() {
@@ -44,9 +44,7 @@ export default class Image extends Details {
                 <div id="theatre-ia" className="container">
                     <div className="row">
                         <div className="xs-col-12">
-
-                            <div id="theatre-controls">
-                            </div> {/*#theatre-controls*/}
+                            <TheatreControls identifier={itemid} mediatype={this.metadata.mediatype}/>
 
                 { mainArchiveFile ? (
                             <div className="details-carousel-wrapper">

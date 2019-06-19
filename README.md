@@ -135,7 +135,32 @@ For a *Search/Colletion/Home* the structure is slightly different
 See [Dweb document index](https://github.com/internetarchive/dweb-transports/blob/master/DOCUMENTINDEX.md) for a list of the repos that make up the Internet Archive's Dweb project, and an index of other documents. 
 
 ## Release notes
-* 0.1.48: Repeatable metadata; 
-* 0.1.49: config button; IAReactComponent; 
-* 0.1.50: Set title on window from item title, or query.
-* 0.1.51: Support bookreader (more work to do on this)
+
+* v0.1.74: Fix some issues with downloads
+* v0.1.73: Fix issue with mirror in offline (introduced in 0.1.72)
+* v0.1.72: Fix some issues when mirror not specified e.g. on dweb.archive.org
+* v0.1.71: Characters on crawl list to SVG; Complex refactor of history
+* v0.1.70: Add icons to new buttons
+* v0.1.69: Add settings and reload buttons to DwebNav
+* v0.1.68: Add settings component and some refactoring
+* v0.1.67: Support Reload
+* v0.1.66: Bugfix local pages and default user config
+* v0.1.65: Fix local page if no tasks
+* v0.1.64: Fix bootloader for "home"; White dot in crawl button; nav-wrap CSS; Simple-list queries;
+* v0.1.63: webpack fixes from ia-components (unpushed) and dweb-archivecontroller 0.1.59
+* v0.1.62: DetailsCollectionList supporting icons, dweb-archivecontroller/Util.js refactor, support home and local better
+* v0.1.61: Updated ia-components and dweb-archivecontroller in webpack
+* v0.1.60: move navwrap into IAUX and rebuild transport and crawl indicators
+* v0.1.59: Bug fix with undefined description
+* v0.1.58: Added crawl UI CSS (rest is in ia-components) 
+* v0.1.58: ScrollableTileGrid component 
+* v0.1.58: Move components into @internetarchive/ia-components repo
+* v0.1.57: Simplify handling of urls, especially removes unneeded metadata fetch from a lot of thumbnails on mirror
+* v0.1.56: Component support reorganized and expanded for IAUX
+* v0.1.55: Move setconfig url; AnchorDetails & Tabby components; work with playlist API (in dweb-archivecontroller 0.1.52)
+* v0.1.53: Refactor components for IAUX; Incorporate dweb-archivecontroller fix to relateditems; 
+* v0.1.52: Bug fix
+* v0.1.51: Support bookreader (more work to do on this)
+* v0.1.50: Set title on window from item title, or query.
+* v0.1.49: config button; IAReactComponent; 
+* v0.1.48: Repeatable metadata; 

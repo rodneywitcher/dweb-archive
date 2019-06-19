@@ -1,13 +1,12 @@
-require('babel-core/register')({ presets: ['env', 'react']}); // ES6 JS below!
 import React from './ReactFake';
 
 import AV from './AV'
-import AICUtil from '@internetarchive/dweb-archivecontroller/Util';
-
+import {gateway, gatewayServer} from '@internetarchive/dweb-archivecontroller/Util';
+import TheatreControls from './components/TheatreControls';
 
 export default class Video extends AV {
-    constructor({itemid=undefined, metaapi=undefined}={}) {
-        super({ itemid, metaapi});
+    constructor({itemid=undefined, metaapi=undefined, noCache=false}={}) {
+        super({ itemid, metaapi, noCache});
         this.itemtype = "http://schema.org/VideoObject";
     }
     setupPlaylist() {
@@ -39,8 +38,8 @@ export default class Video extends AV {
         const playing = this.playlist[0];
         const source = playing.sources[0];
         const af = source.urls;     // An ArchiveFile
-        const contenturl = `${AICUtil.gatewayServer()}${AICUtil.gateway.urlDownload}/${itemid}/${source.name}`;
-        const embedurl = `${AICUtil.gatewayServer()}${AICUtil.gateway.urlDownload}/${itemid}/${playing.original}`;
+        const contenturl = `${gatewayServer()}${gateway.urlDownload}/${itemid}/${source.name}`;
+        const embedurl = `${gatewayServer()}${gateway.urlDownload}/${itemid}/${playing.orig}`;
         const schemacontentlength = `PT0M${parseInt(playing.duration)}S`;
         return (
             <div id="theatre-ia-wrap" class="container container-ia width-max ">
@@ -55,25 +54,7 @@ export default class Video extends AV {
                 <div id="theatre-ia" class="container">
                     <div class="row">
                         <div class="xs-col-12">
-
-                            <div id="theatre-controls">
-                                <a href="#" id="gofullscreen" onclick="">
-                                    <div data-toggle="tooltip" data-container="body" data-placement="left" class="iconochive-fullscreen"
-                                         title="fullscreen view"></div>
-                                </a>
-                                <a href="#" onclick="return AJS.flash_click(0)">
-                                    <div data-toggle="tooltip" data-container="body" data-placement="left" class="iconochive-flash"
-                                         title="Click to have player try flash first, then HTML5 second"></div>
-                                </a>
-                                <a href="#" onclick="return AJS.mute_click()">
-                                    <div data-toggle="tooltip" data-container="body" data-placement="left" class="iconochive-unmute"
-                                         title="sound is on.  click to mute sound."></div>
-                                </a>
-                                <a href="#" onclick="return AJS.mute_click()">
-                                    <div data-toggle="tooltip" data-container="body" data-placement="left" class="iconochive-mute"
-                                         style="display:none" title="sound is off.  click for sound."></div>
-                                </a>
-                            </div>{/*--/#theatre-controls--*/}
+                            <TheatreControls identifier={itemid} mediatype={this.metadata.mediatype}/>
                             <div id="videoContainerX" style="text-align: center;">
                                 {/* This videothumbnailurl is http since if getting decentralized there is little value compared to loading video itself */}
                                 <video id="streamContainer" src={af} poster={videothumbnailurl} controls></video>

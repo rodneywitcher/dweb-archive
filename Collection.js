@@ -1,21 +1,30 @@
-require('babel-core/register')({ presets: ['env', 'react']}); // ES6 JS below!
 import React from './ReactFake';
 import Search from "./Search";
+import AnchorDetails from './components/AnchorDetailsFake'; // Have to use the Fake one as long as this is FakeReact
+import {Tabby} from "@internetarchive/ia-components/index.js";
+import {NavWrap} from '@internetarchive/ia-components/index.js';
+import {AnchorModalGo} from './components/ModalGoFake';
+import {AJS_on_dom_loaded} from "./Util";
 
 export default class Collection extends Search {
     constructor({itemid=undefined, metaapi=undefined}={}) {
         super({ itemid, metaapi,
-            query:  'collection:'+itemid,
+            // query:  'collection:'+itemid, // Replaced by more complex default query in dweb-archivecontroller:ArchiveItem._fetch_query
             sort:   '-downloads',   // This will be overridden based on collection_sort_order
         });
     }
-
+    render(res) { // See other DUPLICATEDCODE#001
+        var els = this.wrap();    // Build the els
+        $('body').addClass('bgEEE'); //TODO remove jquery dependency
+        React.domrender(els, res);  //Put the els into the page
+        this.archive_setup_push(); // Subclassed function to setup stuff for after loading.
+        AJS_on_dom_loaded(); // Runs code pushed by archive_setup - needed for image if "super" this, put it after superclasses
+    }
     wrap() {
         /* Wrap the content up: wrap ( TODO-aside; navwrap; #maincontent; welcome; cher-modal; container-tabby-collection-row (TODO-columns-facets; columns-items) (tabby-about; tabby-form)
         returns:      elements tree suitable for adding into another render
          */
         //Note both description & rights need dangerousHTML and \n -> <br/>
-        const reviewlink = `/details/${this.itemid}&sort=-reviewdate`; //TODO The use of this is sr-only, and may not be correct
         const metadata = this.metadata;
         const description = this.preprocessDescription(metadata.description); // Contains HTML (supposedly safe) inserted via innerHTML thing
         const rights = this.preprocessDescription(metadata.rights); // Contains HTML (supposedly safe) inserted via innerHTML thing
@@ -23,7 +32,7 @@ export default class Collection extends Search {
         return (
             <div id="wrap">
                 {/*TODO needs "aside" */}
-                { new Nav().navwrap() }
+                <NavWrap item={this}/>
                 {/*--Begin page content --*/}
                 <div class="container container-ia">
                     <a name="maincontent" id="maincontent"></a>
@@ -55,8 +64,10 @@ export default class Collection extends Search {
                                     <div class="micro-label">ACTIVITY</div>
                                     <div class="activity-box">
                                         <h2 style="font-weight:100">
-                                            <a class="stealth" href={reviewlink}><span class="iconochive-comment"  aria-hidden="true"></span><span class="sr-only">comment</span> <span
-                                                    id="activity-reviewsN"></span></a>
+                                            <AnchorDetails className="stealth" identifier={this.itemid} sort="-reviewdate"><span
+                                            className="iconochive-comment" aria-hidden="true"></span><span
+                                            className="sr-only">comment</span> <span
+                                            id="activity-reviewsN"></span></AnchorDetails>
                                         </h2>
                                     </div>
                                     <div class="activity-box">
@@ -132,7 +143,7 @@ export default class Collection extends Search {
         const creator = (this.metadata.creator  &&  (metadata.creator.join(', ') != this.metadata.title) ? metadata.creator.join(', ') : '');
         //ARCHIVE-BROWSER note the elements below were converted to HTML 3 times in original version
         //TODO-DETAILS on prelinger, banner description is getting truncated.
-        const description = this.preprocessDescription(this.metadata.description).replace(/(..\/)+..\//g, "../"); // Contains HTML (supposedly safe) inserted via innerHTML thing
+        const description = !this.metadata.description ? undefined : this.preprocessDescription(this.metadata.description).replace(/(..\/)+..\//g, "../"); // Contains HTML (supposedly safe) inserted via innerHTML thing
         const imgsrc = this.thumbnailFile();
         const imgname = this.itemid + ".PNG";   // Required or rendermedia has difficulty knowing what to render since it doesnt take a mimetype
         return (
@@ -150,8 +161,8 @@ export default class Collection extends Search {
                             </div>
                         </div>
                         <div className="col-xs-1 col-sm-2 welcome-right">
-                            <a class="stealth" href="#" onclick="return AJS.modal_go(this,{ignore_lnk:1,shown:AJS.embed_codes_adjust})"
-                               data-target="#cher-modal"><span class="iconochive-share"  aria-hidden="true"></span><span class="sr-only">share</span><span class="hidden-xs-span"> Share</span></a><br/>
+                            <AnchorModalGo className="stealth" opts={{ignore_lnk:1,shown:AJS.embed_codes_adjust}}
+                               data-target="#cher-modal"><span class="iconochive-share"  aria-hidden="true"></span><span class="sr-only">share</span><span class="hidden-xs-span"> Share</span></AnchorModalGo><br/>
                             {/*TODO-LOGIN /bookmarks isnt going to work, also not logged in https://github.com/internetarchive/dweb-archive/issues/new
                             <a class="stealth" href="/bookmarks.php?add_bookmark=1&amp;mediatype=collection&amp;identifier=prelinger&amp;title=Prelinger+Archives" onclick="return AJS.modal_go(this,{favorite:1})"
                                data-target="#confirm-modal"><span class="iconochive-favorite"  aria-hidden="true"></span><span class="sr-only">favorite</span><span class="hidden-xs-span"> Favorite</span></a><br/>
@@ -166,62 +177,33 @@ export default class Collection extends Search {
                         </div>
                     </div>
                     <div class="tabbys">
-                        <div class="tabby">
-                            <div>
-                                <a id="tabby-about-finder"
-                                   class="stealth"
-                                   href={`/details/${this.itemid}&tab=about`}
-                                   onclick="return AJS.tabby(this,'tabby-about')">
-                                    <span class="tabby-text">ABOUT</span>
-                                </a>
-                            </div>
-                        </div>
-                        <div class="tabby in">
-                            <div>
-                                <a id="tabby-collection-finder"
-                                   class="stealth tabby-default-finder"
-                                   href={`/details/${this.itemid}&tab=collection`}
-                                   onclick="return AJS.tabby(this,'tabby-collection')">
-                                    <span class="tabby-text">COLLECTION</span>
-                                </a>
-                            </div>
-                        </div>
-                        <div class="tabby">
-                            <div>
-                                <a id="tabby-forum-finder"
-                                   class="stealth"
-                                   href={`http://archive.org/details/${this.itemid}&tab=forum`}
-                                   onclick="return AJS.tabby(this,'tabby-forum')">
-                                    <span class="tabby-text">FORUM</span>
-                                </a>
-                            </div>
-                        </div>
+                        <Tabby id="about" identifier={this.itemid} text="ABOUT"/>
+                        <Tabby id="collection" identifier={this.itemid} text="COLLECTION" default/>
+                        <Tabby id="forum" identifier={this.itemid} text="FORUM"/>
                         <div class="clearfix"> </div>
                     </div>
                 {/*container*/}</div>
             {/*welcome*/}</div>
         );
     }
+    
     archive_setup_push() {
         // Note the archive_setup.push stuff is subtly different from that for 'search'
         const query = this.query;
-        archive_setup.push(function() {
+        archive_setup.push(function() { // archive_setup is in archive.js
             AJS.date_switcher(`&nbsp;<a href="/search.php?query=${query}&amp;sort=-publicdate"><div class="date_switcher in">Date Archived</div></a> <a href="/search.php?query=${query}&amp;sort=-date"><div class="date_switcher">Date Published</div></a> <a href="/search.php?query=${query}&amp;sort=-reviewdate"><div class="date_switcher">Date Reviewed</div></a> `);
             AJS.lists_v_tiles_setup('collection');
             $('div.ikind').css({visibility:'visible'});
             AJS.popState('');
-            AJS.tiler();      // Note Traceys code had AJS.tiler('#ikind-search') but Search and Collections examples have it with no args
+            //AJS.tiler();      // Note Traceys code had AJS.tiler('#ikind-search') but Search and Collections examples have it with no args - dont want it here anyway, as breaks per-image Tiler in at least Local.jsx
             $(window).on('resize  orientationchange', function(evt){
                 clearTimeout(AJS.tiles_wrap_throttler);
                 AJS.tiles_wrap_throttler = setTimeout(AJS.tiler, 250);
             });
             // register for scroll updates (for infinite search results)
-            $(window).scroll(AJS.scrolled);
+            //NOW in TILEGRID.js $(window).scroll(AJS.scrolled); TODO-UXLOCAL add to Search.js
         });
     }
 
-    browserBefore() {
-        $('body').addClass('bgEEE');
-    }
 
 }

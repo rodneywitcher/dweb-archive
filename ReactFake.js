@@ -13,22 +13,23 @@ import from2 from "from2";
 import prettierBytes from "prettier-bytes";
 const Url = require('url');
 const asyncMap = require('async/map');
+//These are needed to mingle real-react with Fake-react during transition.
 import ReactDOM from 'react-dom';
+import RealReact from 'react';
 // other Internet Archive modules
 const debug = require('debug')('dweb-archive:ReactFake');
 import ArchiveItem from "@internetarchive/dweb-archivecontroller/ArchiveItem";
 import ArchiveFile from "@internetarchive/dweb-archivecontroller/ArchiveFile";
 import ArchiveMember from "@internetarchive/dweb-archivecontroller/ArchiveMember";
 // Other parts of dweb-archive
-import Util from './Util';
-import IAReactComponent from './components/IAReactComponent';
+import {config} from './Util';
 
 //const DwebTransports = require('./Transports'); Not "required" because available as window.DwebTransports by separate import
 
 
 /*
-Handling of FakeReact IAReactComponents
-* createElement(tag=IAReactComponent) spots the tag is a function and calls new(attrs), lets call this NEWIAREACTOBJ
+Handling of FakeReact IAFakeReactComponents
+* createElement(tag=IAFakeReactComponent) spots the tag is a function and calls new(attrs), lets call this NEWIAREACTOBJ
 * createElement then adds the kids (which possibly doesnt work, and we dont have a current use case)
 * when NEWIAREACTOBJ is added into its parent,
     * addKids(parent) calls NEWIAREACTOBJ.render()
@@ -77,6 +78,19 @@ export default class React  {
         }
         return undefined
     }
+    static _config() {
+        return DwebArchive.mirror ? {
+                root:       DwebArchive.mirror + "/arc/archive.org",    // Used for absolute URLs in descriptions e.g. /details/foo
+                relname:    DwebArchive.mirror + "/arc/archive.org/",   // Used for img.src=./
+                rootname:   DwebArchive.mirror + "/arc/archive.org/",   // Used for img.rc=/serve etc (see example in commute.description
+                tabbyrootinsert: "/arc/archive.org", // Insert before tabby links to gets to https://dweb.me/arc/archive.org/details/foo?bar in origin dweb.me with url /details/foo?bar
+            } : {
+                root:       "https://dweb.archive.org",   // Used for absolute URLs in descriptions e.g. /details/foo
+                relname:    "dweb:/arc/archive.org/",   // Used for img.src=./
+                rootname:   "dweb:/arc/archive.org/", // Used for img.rc=/serve etc (see example in commute.description
+                tabbyrootinsert: "/arc/archive.org", // Insert before tabby links to gets to https://dweb.me/arc/archive.org/details/foo?bar in origin dweb.me with url /details/foo?bar
+            };
+    }
     static resolveUrls(url, options={}) {
         /* Synchronous part of p_resolveUrls, handle subset of cases that don't require network access (asyncronicity)
         url:   Array or Single url, each could be relative("./foo.jpg", or root relative ("/images.foo.jpg") and could also be a ArchiveFile
@@ -96,13 +110,12 @@ export default class React  {
             if (!(url.startsWith("/search.php") || url.startsWith("/services") || url.startsWith("/details"))) {
                 console.warn("Probably not a good idea to use root-relative URL", url); //could genericise to use options.rel instead of config but might not catch cases e.g. of /images
             }
-            if (!React._config.root) console.error("Need to React.config({root: 'https://xyz.abc'");
-            return [this.relativeurl(React._config.rootname, url)].filter(u => !!u);  // e.g. /foo => [https://bar.com/foo]
+            return [this.relativeurl(React._config().rootname, url)].filter(u => !!u);  // e.g. /foo => [https://bar.com/foo]
         } else if (url.startsWith("./")) {
             if (!url.startsWith("./images")) {
                 console.warn("Relative URLs arent a great idea as what to be relative to is often unclear", url, options); //could genericise to use rel instead of config but might not catch cases e.g. of /images
             }
-            return [this.relativeurl(React._config.relname, url)].filter(u => !!u);
+            return [this.relativeurl(React._config().relname, url)].filter(u => !!u);
         } else {
             return [url]; // Not relative, just pass it back
         }
@@ -119,7 +132,7 @@ export default class React  {
                     if (err) { cb(err) } else { cb(null, [].concat(...res)) }; // Flatten, for now accept there might be dupes
                 });
             } else if (url instanceof ArchiveMember) {  // Its a member, we want the urls of the images
-                url.urls(cb);                           // This will be fast - just thumbnaillinks or service, wont try and ask gateway for metadata and IPFS ima
+                url.urls(cb);                           // This will be fast - just thumbnaillinks or services, wont try and ask gateway for metadata and IPFS ima
             } else if (url instanceof ArchiveFile) {
                 url.urls(cb);                           // This could be slow, may have to get the gateway to cache the file in IPFS
             } else {
@@ -136,10 +149,10 @@ export default class React  {
         el.appendChild(elImg);
     }
 
-    static async thumbnailUrlsFrom(itemid) {
+    static async thumbnailUrlsFrom(identifier) {
         // Return thumbnail links
         //itemid
-        return await new ArchiveItem({itemid}).thumbnaillinks()
+        return await new ArchiveItem({identifier}).thumbnaillinks()
     }
     static async p_loadImg(el, name, urls, cb) {
         /*
@@ -159,8 +172,8 @@ export default class React  {
                 urls = urls.filter(u => !u.includes("magnet:"));
             } else { // This includes ArchiveMember
                 urls = await this.p_resolveUrls(urls); // Handles a range of urls include ArchiveFile - can be empty if fail to find any
-            }  //Examples: [dweb:/arc/archive.org/service/foo]
-            for (i in urls) { // Its unclear if this is used except in odd cases, should really push upstream as does an unneeded metadata call
+            }  //Examples: [dweb:/arc/archive.org/services/foo]
+            for (let i in urls) { // This can get used if /services/xx passed in here, then converted to dweb:/arc/archive.org/services
                 if (urls[i].includes("dweb:/arc/archive.org/services/img/")) {
                     urls[i] = await this.thumbnailUrlsFrom(urls[i].slice(35));
                 }
@@ -290,7 +303,7 @@ export default class React  {
             Dont try and use IPFS till get a fix for createReadStream
 
             el: HTML element to load into (the video, img or audio tag)
-            urls:   String, Array or ArchiveFile
+            urls:   relative or absolute url, array of url, or ArchiveFile i.e. flexible!
             name:   Name of the stream - this is important to something, but I can't remember what
             cb(err,el):     If present, will be passed to RenderMedia.render and called back on failure or when can play/view the element
         */
@@ -299,7 +312,7 @@ export default class React  {
             //TODO-MIRROR-ISSUE47 ...and then p_resolveNames (or in here) should probably be where we decide these can go to the cache...
             //TODO-MIRRROR-ISSUE47 ... or merge p_resolveUrls with p_resolveNames into a urls->urls function esp if this pattern reused ...
             //TODO-MIRROR-ISSUE47 ... but needs to know whether to handle the cache URL as a stream URL or not ...
-            const urlsabs = await this.p_resolveUrls(urls); // Allow relative urls
+            const urlsabs = await this.p_resolveUrls(urls); // [ url* ] where url is absolute (not root or directory relative)
             const urlsresolved = await DwebTransports.p_resolveNames(urlsabs); // Allow names among urls
             // Strategy here ...
             // If serviceworker && webtorrent => video src=
@@ -318,6 +331,7 @@ export default class React  {
                         // Next choice is to pass a HTTP url direct to <VIDEO> as it knows how to stream it.
                         // TODO clean this nasty kludge up,
                         // Find a HTTP transport if connected, then ask it for the URL (as will probably be contenthash) note it leaves non contenthash urls untouched
+                        // TODO if start seeing failures with wrong urls e.g. http://ipfs.io etc then may want to do a HEAD in p_httpfetchurl to check
                         const httpurl = await DwebTransports.p_httpfetchurl(urlsresolved);
                         if (httpurl) {
                             el.src = httpurl;
@@ -347,14 +361,6 @@ export default class React  {
     }
 
 
-    static config(options) {
-        /*
-            Configure ReactFake
-
-            root: protocol and host to insert before URLs (currently in img tags only) e.g. "https://archive.org"
-         */
-        for (x of options) React._config[x] = options[x];
-    }
     static createElement(tag, attrs, children) {        // Note arguments is set to tag, attrs, child1, child2 etc
         /* Replaces React's createElement - has a number of application specific special cases
             <img src=ArchiveFile(...)> replaced by <div><img x-=u>
@@ -364,10 +370,10 @@ export default class React  {
         /* First we handle cases where we dont actually build the tag requested */
 
         const kids = Array.prototype.slice.call(arguments).slice(2);
-        if (typeof tag === "function") {  // Assume its a React class for now TODO-IAUX just testing
-            if (tag.prototype instanceof IAReactComponent) {
+        if (typeof tag === "function") {  // Assume its a component (React or FakeReact)
+            if (tag.prototype instanceof this.Component) { // Its Fake React
+                if (kids && kids.length) { attrs.children = kids}; // Copy way Real React passes children to component
                 const element = new tag(attrs);
-                React.addKids(element, kids); // This is FakeReact.addKids, and may not work inside of a Fake IAReactComponent
                 return element;
             } else { // Real React
                 const element = RealReact.createElement(tag, attrs, ...kids); // Returns a React Element which will be rendered into DOM by addKids on el its being included into
@@ -407,6 +413,7 @@ export default class React  {
     }
     static setAttributes(element, tag, attrs) {
         /* Build out a created element adding Attributes and Children
+           Note this only applies to explicit HTML elements, not to components whose constructors are called directly.
         tag:    Lower case string of element e.g. "img"
         attrs:  Object {attr: value}
 
@@ -426,13 +433,14 @@ export default class React  {
                 }
                 // Don't set possibleOnClock, we want it explicitly
             } else if (href.startsWith("dweb:/arc/archive.org/details/")) { // E.g <a href="/details/foo">
+                //console.assert(false,"IAUX FLAG - LOOK AT CALL STACK HERE");
                 let itemid = href.slice(30);
-                possibleOnclick = `Nav.nav_details("${itemid}"); return false;`;
+                possibleOnclick = `Nav.nav_detailsOnClick("${itemid}"); return false;`; //TODO-IAUX move to AnchorDetails but if AnchorDetails is React then reqs wrapping ReactComponent
             } else if (href.startsWith("dweb:")) {
                 possibleOnclick = 'DwebObjects.Domain.p_resolveAndBoot(this.href); return false;';
             } else if (href.indexOf("/download/") >= 0) {
                 let dirname =  href.slice(href.indexOf("/download/")+10);
-                possibleOnclick = `Nav.nav_downloaddirectory("${dirname}"); return false;`
+                possibleOnclick = `Nav.nav_downloaddirectoryOnClick("${dirname}"); return false;`
             }
             if (possibleOnclick) {
                 if (attrs["onclick"] || ("onclick" in attrs)) {
@@ -447,14 +455,14 @@ export default class React  {
             // React uses camelCase for events. thy are converted here to lowercase since we allow storage of a function as the value, and the browser allows that
             const attrname = (name.toLowerCase() === "classname" ? "class" : ["onClick"].includes(name) ? name.toLowerCase(name) : name );
             if (name === "dangerouslySetInnerHTML") {
-                element.innerHTML = attrs[name]["__html"];
+                element.innerHTML = attrs[name]["__html"] || null;
                 delete attrs.dangerouslySetInnerHTML;
             }
             // Turn root-relative URLS in IMG and A into absolute urls - ideally these are also caught by special cases (note don't appear to be any of these in most code)
             if (["a.href"].includes(tag + "." + name) && (typeof attrs[name] === "string") ) { // <a href=<string>
                 if (attrs[name].startsWith('./') || attrs[name].startsWith('/')) {
                     if (attrs.id && attrs.id.startsWith('tabby-')) {  // There is some weird javascript in AJS.tabby which assumes this is root-relative, so dont change it
-                        attrs[name] = React._config.tabbyrootinsert + attrs[name]; // Rewrite value to store
+                        attrs[name] = React._config().tabbyrootinsert + attrs[name]; // Rewrite value to store
                     } else {
                         let hrefs = this.resolveUrls(attrs[name]); // Array of urls, but should be just one since href name will be singular as will rel
                         if (hrefs.length > 1) {
@@ -480,9 +488,9 @@ export default class React  {
                 const af = attrs[name];
                 const videoname = af.metadata.name;
                 //Dont need mimetype currently
-                //const mimetype = AICUtil.formats("format", af.metadata.format).mimetype; // Might be undefined for many formats still
+                //const mimetype = ACUtil.formats("format", af.metadata.format).mimetype; // Might be undefined for many formats still
                 //if (!mimetype) console.warning("Unknown mimetype for ",af.metadata.format, "on",af.metadata.name);
-                this.loadStream(element, af, {name: videoname, preferredTransports: Util.config.preferredAVtransports});  // Cues up asynchronously to load the video/audio tag (dont need cb as this does the work of cb)
+                this.loadStream(element, af, {name: videoname, preferredTransports: config.preferredAVtransports});  // Cues up asynchronously to load the video/audio tag (dont need cb as this does the work of cb)
             } else if (["a.source"].includes(tag + "." + name) && attrs[name] instanceof Object) {
                 element[name] = attrs[name];      // Store the ArchiveFile or Track in the DOM, function e.g. onClick will access it.
             } else if (name && attrs.hasOwnProperty(name)) {
@@ -508,12 +516,12 @@ export default class React  {
         return element;
     }
     static addKids(element, child) {
-        /* add kids to a created element
+        /* add kids to a created element, note this is NOT called when children are added from a component into the render of the component.
         kids:   Array of children
         /* This is called back by loadImg after creating the tag. */
         if (Array.isArray(child)) {
             child.forEach(k => this.addKids(element, k));
-        } else if (typeof child === "undefined") { // This was !child, but that skips the integer 0.
+        } else if ((typeof child === "undefined") || (child === null)) { // This was !child, but that skips the integer 0.
         } else { // Single child to add - this next bit is fairly heuristic, should be double checked if things change.
             // Essentially three kinds of things here.
             // * React Elements which are objects with no accessable class - and need rendering by React (Only when integrated with IAUX
@@ -523,18 +531,30 @@ export default class React  {
             // * There may be a fourth type - of things that can be converted to strings, but if so I need an example
             const addable =
                 (typeof child === "string")      ? document.createTextNode(child.toString())
-                    : (child instanceof IAReactComponent) ? child.render()  // Fake only, (will cause any ref= at top level to be a function)
-                    : !(child instanceof HTMLElement) ? document.createElement("span")  // React Elements
-                        :                                  child;
-            element.appendChild(addable);
-            if ((addable instanceof HTMLElement) && (typeof addable.ref === "function")) { // Call the ref attribute of real or fake IAReactComponent
-                addable.ref.call(child, addable);
+                    : (child instanceof this.Component)
+                    ? child.render()  // Fake only, (will cause any ref= at top level to be a function)
+                    : !(child instanceof HTMLElement)
+                    ? document.createElement("span")  // React Elements
+                    :                                  child; //XX
+
+            try {
+                element.appendChild(addable);
+            } catch(err) {
+                debug("ERROR addKids failed to add kid:%s %O", err.message, addable)
+                return element; // Skip rest
             }
-            if (child instanceof IAReactComponent) {
-                child.componentDidMount(); // Tell fake IAReactComponent it mounted
+            if ((addable instanceof HTMLElement) && (typeof addable.ref === "function")) { // Call the ref attribute of IAReactComponent or IAFakeReactComponent
+                try {
+                    addable.ref.call(child, addable);
+                } catch(err) {
+                    debug("ERROR addKids caught error in call to ref: ", err.message);
+                }
+            }
+            if (child instanceof this.Component) {
+                child.componentDidMount(); // Tell IAFakeReactComponent it mounted
             }
             //TODO-IAUX Retest this, as triggers if child=0 for example, should find way to trigger positively on either child or addable
-            if (! ((typeof child === "string") || (typeof child === "number") || (child instanceof HTMLElement) || (child instanceof IAReactComponent))) {
+            if (! ((typeof child === "string") || (typeof child === "number") || (child instanceof HTMLElement) || (child instanceof this.Component))) {
                 this.renderRealReact(child, addable);
             }
         }
@@ -547,37 +567,34 @@ export default class React  {
             ReactDOM.unmountComponentAtNode(parent)
             //child.renderFakeElement.parentElement.removeChild(child.renderFakeElement);
         }
-        const el = ReactDOM.render(child, parent); // Have to render after already in the DOM, although it might not be above ?
+        try {
+            const el = ReactDOM.render(child, parent); // Have to render after already in the DOM, although it might not be above ?
+        } catch(err) {
+            debug(">>>> renderRealReact caught %O", err);
+        }
     }
     static domrender(els, node) { // Four cases - have/dont old/new
-        let navdweb = document.getElementById('nav-dweb'); // Find the navbar element TODO-STATUS this might move
-        let navdwebparent;
-        if (navdweb) { // old, ?new
-            navdwebparent = navdweb.parentElement;
-            navdwebparent.removeChild(navdweb);
-            navdwebparent = undefined; // Removed old version
+            deletechildren(node, false);
+            node.appendChild(els);
         }
-        deletechildren(node, false);
-        node.appendChild(els);
-        let navdwebnew = document.getElementById('nav-dweb'); // Look for a new one, note wont find the one we removed above
-        if (navdwebnew) navdwebparent = navdwebnew.parentElement;  // ?o&&n
-        if (navdweb && navdwebnew) { // o&&n
-            navdwebparent.removeChild(navdwebnew); // Remove new copy
-        }
-        if ( !navdwebparent) { // o&&!n,
-            navdwebparent = document.getElementById('nav-dweb-parent') || document.children[0]; // Find the navbar element and if fails then put on HTML for now TODO-STATUS this might move
-        }
-        if (navdweb) { // o&&?n Add in old one if we have it
-            navdwebparent.append(navdweb); // Put it back in the right place, or stash temporarily if not found
-        }
-    }
 };
 
-//Default configuration
-React._config = {
-//    root: "https://archive.org",
-    root: "https://dweb.archive.org",
-    relname: "dweb:/arc/archive.org/",   // Used for img.src=./
-    rootname: "dweb:/arc/archive.org/", // Used for img.rc=/serve etc (see example in commute.description
-    tabbyrootinsert: "/arc/archive.org", // Insert before tabby links to gets to https://dweb.me/arc/archive.org/details/foo?bar in origin dweb.me with url /details/foo?bar
-};
+React.Component = class {
+    // Fake the methods of React.Component that IAFakeReactComponent calls.
+    constructor(props) {
+        // Let the super class store the props, you can manipulate them in subclasses
+        this.props = props;
+        // Initialize the state, again the subclasses can add to it
+        // Now moved to IAFakeReactComponent
+        //this.state = {};
+    }
+    setState(o) {
+        Object.keys(res).forEach(k => this.state[k] = res[k]);
+        // renderFakeElement is set in ReactFake to the element created (on mounting), so it can be removed from React and then updated
+        // it causes the item to be rerendered when setState is called e.g. after data is retrieved
+        // Strangely renderFakeElement doesnt seem to be defined anywhere ?
+        if (typeof DwebArchive !== "undefined" && typeof this.renderFakeElement !== "undefined") {
+            DwebArchive.ReactFake.renderRealReact(this, this.renderFakeElement.parentNode);
+        }
+    }
+}

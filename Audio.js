@@ -1,8 +1,8 @@
-require('babel-core/register')({ presets: ['env', 'react']}); // ES6 JS below!
 import React from './ReactFake';
 
 import AV from './AV';
-import Util from './Util';
+import {config} from './Util';
+import TheatreControls from './components/TheatreControls';
 
 /* Notes on Audio
     - see also https://github.com/internetarchive/dweb-archive/issues/18
@@ -13,8 +13,8 @@ import Util from './Util';
  */
 
 export default class Audio extends AV {
-    constructor({itemid=undefined, metaapi=undefined}={}) {
-        super({ itemid, metaapi});
+    constructor({itemid=undefined, metaapi=undefined, noCache=false}={}) {
+        super({ itemid, metaapi, noCache});
         this.itemtype = "http://schema.org/AudioObject";
     }
 
@@ -30,7 +30,7 @@ export default class Audio extends AV {
             .forEach(el => el.classList.remove("playing"));
         elAnchor.querySelectorAll(".jwrowV2").forEach(el => el.classList.add("playing"));
         const elAudio = document.getElementById("streamContainer");
-        React.loadStream(elAudio, af, {name: af.metadata.name, preferredTransports: Util.config.preferredAVtransports});
+        React.loadStream(elAudio, af, {name: af.metadata.name, preferredTransports: config.preferredAVtransports});
         return false;
     }
 
@@ -73,21 +73,7 @@ export default class Audio extends AV {
                 <div id="theatre-ia" class="container">
                     <div class="row">
                         <div class="xs-col-12">
-
-                            <div id="theatre-controls">
-                                <a href="#" onclick="return AJS.flash_click(0)">
-                                    <div data-toggle="tooltip" data-container="body" data-placement="left" class="iconochive-flash"
-                                         title="Click to have player try flash first, then HTML5 second"></div>
-                                </a>
-                                <a href="#" onclick="return AJS.mute_click()">
-                                    <div data-toggle="tooltip" data-container="body" data-placement="left" class="iconochive-unmute"
-                                         title="sound is on.  click to mute sound."></div>
-                                </a>
-                                <a href="#" onclick="return AJS.mute_click()">
-                                    <div data-toggle="tooltip" data-container="body" data-placement="left" class="iconochive-mute"
-                                         style="display:none" title="sound is off.  click for sound."></div>
-                                </a>
-                            </div>{/*--/#theatre-controls--*/}
+                            <TheatreControls identifier={itemid} mediatype={this.metadata.mediatype}/>
                             <div class="row">
                                 <div class="col-xs-12 col-sm-6 col-md-5 col-lg-4 audio-image-carousel-wrapper">
                                     <center>{/*--TODO-AUDIO replace image - see https://github.com/internetarchive/dweb-archive/issues/23--*/}

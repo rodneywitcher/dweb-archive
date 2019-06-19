@@ -1,4 +1,4 @@
-require('babel-core/register')({presets: ['env', 'react']}); // ES6 JS below!
+
 import React from './ReactFake';
 //Not needed on client - kept so script can run in both cases
 //import ReactDOMServer from 'react-dom/server';
@@ -14,36 +14,48 @@ import React from './ReactFake';
 // React requires style={{display: none}} ReactFake can also handle quoted style="display: none"
 // React requires className= rather than class=, ReactFake supports both
 
-import AICUtil from '@internetarchive/dweb-archivecontroller/Util';
-import ArchiveMemberRelated from '@internetarchive/dweb-archivecontroller/ArchiveMemberRelated';
-import TileComponent from './components/TileComponent';
-import CollectionList from './components/CollectionList';
+import {languageMapping} from '@internetarchive/dweb-archivecontroller/Util';
+import {DetailsActionButtons, DetailsDownloadOptions} from "@internetarchive/ia-components/index.js";
+import RelatedItemsWrapper from './components/RelatedItemsWrapper';
+import DetailsCollectionListWrapper from './components/DetailsCollectionListWrapper';
 import ArchiveBase from './ArchiveBase';
+import AnchorDetails from './components/AnchorDetailsFake'; // Have to use the Fake one as long as this is FakeReact
+import {NavWrap} from '@internetarchive/ia-components/index.js';
+import {AJS_on_dom_loaded} from "./Util";
 
 export default class Details extends ArchiveBase {
-    constructor({itemid = undefined, metaapi = undefined}={}) {
+    constructor({itemid = undefined, metaapi = undefined, noCache=false}={}) {
         super({itemid, metaapi});
+        this.noCache = noCache;
     }
 
+    render(res) { // See other (almost) DUPLICATEDCODE#001
+        var els = this.wrap();    // Build the els
+        // Other DUPLOCATEDCODE#001 do `$('body').addClass('bgEEE')` here
+        React.domrender(els, res);  //Put the els into the page
+        this.browserAfter();
+    }
     wrap() {
-        /* Wrap the content up checked on mbid (Red Shift)
+        /* Wrap the content up
         context: body wrap(
-        content: (on image)  wrap( TODO-DONATEBANNER | nav-wrap | maincontent | theatre-ia-wrap | item-details-about | TODO-ACTIONBUTTONS | TODO-ALSOFOUND  | TODO-ANALYTICS )
+        content: (on image)  wrap( TODO-DONATEBANNER | nav-wrap | maincontent | theatre-ia-wrap | item-details-about | TODO-ACTIONBUTTONS | RelatedItems  | TODO-ANALYTICS )
         returns: elements tree suitable for adding into another render
          */
         return (
             <div id="wrap" itemscope itemtype={this.itemtype}>
                 {/* Missing donate-banner and scripts & css before it */}
-                { new Nav().navwrap() }
+                <NavWrap item={this}/>
                 {/*--Begin page content --*/}
                 <div class="container container-ia">
                     <a name="maincontent" id="maincontent"></a>
                 </div>{/*--//.container-ia--*/}
                 {this.theatreIaWrap()} {/*This is the main-content*/}
-                {this.itemDetailsAboutJSX()}
-                {this.itemDetailsAlsoFound()}
-                {/* should have: alsoFound here (look at end of commute.html) - but not on Directory (and maybe some other types ?collection?) */}
+                {(!this.itemid) ? null :
+                  this.itemDetailsAboutJSX() }
+                {(!this.itemid) ? null :
+                    <RelatedItemsWrapper identifier={this.itemid} item={this} noCache={this.noCache} /> }
                 {/* should have: analytics here (look at end of commute.html) - but not on Directory (and maybe some other types ?collection?)*/}
+                }
             {/*--wrap--*/}</div>
         );
     }
@@ -60,18 +72,19 @@ export default class Details extends ArchiveBase {
     }
     browserAfter() {
         // initialize_flag
-        // overlay related
+        // overlay related but might never be used as dont see toggle-flag-overlay appearing anywhere but might be used in archive.js
         $(".toggle-flag-overlay").click(function (e) {
             e.preventDefault();
             $("#theatre-ia-wrap").removeClass("flagged");
         });
-        // overlay - checkboxes
+        // overlay - checkboxes - this may never get used as I cant find any flag-checkboxes or my-checkbox in any sample HTML files
         $("#flag-checkboxes a").on("click", function (e) {
             e.preventDefault();
             $(this).children(".my-checkbox").toggleClass("checked");
             $.get($(this).attr("href"))
         });
-        super.browserAfter(); // runs archive_setup_push and Util.AJS_on_dom_loaded(); Do this after the scripts above - which means put this browserAfter AFTER superclasses
+        this.archive_setup_push(); // Subclassed function to setup stuff for after loading.
+        AJS_on_dom_loaded(); // Runs code pushed archive_setup - needed for image if "super" this, put it after superclasses
     }
 
     embedWordpress() {
@@ -137,9 +150,9 @@ export default class Details extends ArchiveBase {
         // noinspection JSUnresolvedVariable
         const licence = metadata.licenseurl; //TODO - handle other licenses - hardwired for CC currently
         const languages = metadata.language || [];
-        const queryLanguage=languages.map(l => `language:${l} OR language:"{AICUtil.languageMapping[l]"`).join(' OR ');
+        const queryLanguage=languages.map(l => `language:${l} OR language:"{languageMapping[l]"`).join(' OR ');
         const queryLanguageEnc= encodeURIComponent(queryLanguage);
-        const languageLong = languages.map(l => AICUtil.languageMapping[l]).join(',');
+        const languageLong = languages.map(l => languageMapping[l]).join(',');
         const description = this.preprocessDescription(metadata.description); // Contains HTML (supposedly safe) inserted via innerHTML thing
         const metadataListKeyStrings = {ocr: "OCR", runtime: "Run time", ppi: "PPI"}; /*Metadata with something other than capitalize first letter*/
         const metadataListExclude = [
@@ -152,24 +165,10 @@ export default class Details extends ArchiveBase {
         const metadataListFound = Object.keys(metadata)
             .filter( (k) => (!metadataListExclude.includes(k)) && metadata[k] && metadata[k].length);   // List of keys in the metadata that are not empty strings or empty arrays
 
-        const downloadableFilesDict = this.files.reduce( (res, af) => {
-                if (af.downloadable()) {  // Note on image it EXCLUDED JPEG Thumb, but included JPEG*Thumb
-                    const format = af.metadata.format;
-                    if (!res[format]) { res[format] = []; }
-                    res[format].push(af);
-                }
-                return res;
-            }, {}
-        );
 
 
             //TODO  Replace "a" with onclicks to download function on f
         // noinspection JSUnresolvedVariable
-        const filesCount = this.files_count;
-        const originalFilesCount = this.files.filter((f)=>f.metadata.source === "original").length+1; // Adds in Archive Bittorrent
-        const downloadURL = `https://dweb.archive.org/download/${itemid}`;
-        const compressURL = `https://archive.org/compress/${itemid}`; // leave as direct link, else need to zip and store each item in IPFS
-        const compressAllURL = `https://archive.org/compress/${itemid}/formats=JSON,METADATA,JPEG,ARCHIVE BITTORRENT,MUSICBRAINZ METADATA`; // As above leave as direct
         const collections = metadata.collection; // [str*]
         // noinspection JSUnresolvedVariable
         const collectionTitles = this.collection_titles;   // Dictionary mapping collection itemid to title
@@ -180,8 +179,6 @@ export default class Details extends ArchiveBase {
         // noinspection JSUnresolvedVariable
         const reviews = this.reviews;
         const writeReviewsURL = `https://archive.org/write-review.php?identifier=${itemid}`;  //TODO need an indirect way to submit a review
-        const loginURL = "https://archive.org/account/login.php"; //TODO - its a Direct link as dont support authentication in DWeb version
-        const bookmarksAddURL = `https://archive.org/bookmarks.php?add_bookmark=1&amp;mediatype=image&amp;identifier=${itemid}&amp;title=${title}`; //TODO find way to submit distributed
         // noinspection JSUnresolvedVariable
         const credits = (metadata.credits || []).join(', ');
         //TODO-DETAILS much of below doesn't work (yet)
@@ -190,52 +187,7 @@ export default class Details extends ArchiveBase {
             <div class="container container-ia item-details-about">
                 <div class="relative-row row">
                     <div class="thats-right" style="text-align:right;">
-                    <div class="action-buttons">
-                        <div class="topinblock">
-                            <a class="button " href={bookmarksAddURL} id="favorite-button" aria-haspopup="true"
-                               onclick="return AJS.modal_go(this,{{favorite:1}})" data-target="#confirm-modal" data-toggle="tooltip"
-                               data-container="body" data-placement="bottom" title="Favorite this item">
-                                <span class="iconochive-favorite" aria-hidden="true"></span><span class="sr-only">favorite</span>
-                            </a>
-                        </div>
-                        <div class="topinblock">
-                            <button id="share-button" class="button" type="button" aria-haspopup="true"
-                                    onclick="return AJS.modal_go(this,{{ignore_lnk:1,shown:AJS.embed_codes_adjust}})"
-                                    data-target="#cher-modal" data-toggle="tooltip" data-container="body" data-placement="bottom"
-                                    title="Share this item">
-                                <span class="iconochive-share" aria-hidden="true"></span><span class="sr-only">share</span></button>
-                        </div>
-                        <div
-                                id="flag-button-container" class="topinblock" data-toggle="tooltip" data-placement="bottom"
-                                data-container="body" title="Flag this item">
-                            <div class="dropup">
-                                <button id="flag-button" class=" button" type="button" data-toggle="dropdown" aria-haspopup="true"
-                                        aria-expanded="false"><span class="iconochive-Flag" aria-hidden="true"></span><span
-                                        class="sr-only">flag</span></button>
-                                <div id="flag-popover" class="dropdown-menu" aria-labelledby="flag-button">
-                                    <h3 class="dropdown-title">Flag this item for</h3>
-                                    <ul role="menu">
-                                        <li class="">
-                                            <a href={loginURL} role="menuitem">
-                                                Graphic Violence </a>
-                                        </li>
-                                        <li class="">
-                                            <a href={loginURL} role="menuitem">
-                                                Graphic Sexual Content </a>
-                                        </li>
-                                        <li class="">
-                                            <a href={loginURL} role="menuitem">
-                                                Spam, Scam or Fraud </a>
-                                        </li>
-                                        <li class="">
-                                            <a href={loginURL} role="menuitem" >
-                                            Broken or Empty Data                </a>
-                                        </li>
-                                    </ul>
-                                </div> {/*-- /#flag-popover --*/}
-                            </div> {/*--/.dropdown --*/}
-                        </div>
-                    </div>{/*--/.action-buttons--*/}
+                        <DetailsActionButtons identifier={itemid} title={metadata.title}/>
                     </div>
                     {/*-- flag initialization moved to browserAfter() --*/}
                     <div class="col-sm-8 thats-left item-details-metadata">
@@ -318,8 +270,6 @@ export default class Details extends ArchiveBase {
                             ) }
                         </div>
 
-                        {/*TODO "See also" section drawing from some of metadata.externalidentifier note two adjacent divs present
-                        on mbid-b105f712-d75e-4d0a-a9c5-bf1948461e2b not in commute will need to retrieve those to do so.*/}
                         <div id="reviews">
                             <h2 style="font-size:36px;font-weight:200;border-bottom:1px solid #979797; padding-bottom:5px; margin-top:50px;">
                                 <div class="pull-right" style="font-size:14px;font-weight:500;padding-top:14px;">
@@ -335,8 +285,7 @@ export default class Details extends ArchiveBase {
                             { reviews && reviews.length ? reviews.map((review) => (
                                 <div class="aReview">
                                     <b>Reviewer:</b>{' '}
-                                    <a onClick={`Nav.nav_details('@${review.reviewer}')`}
-                                       data-event-click-tracking="ItemReviews|ReviewerLink">{review.reviewer}</a>
+                                    <AnchorDetails identifier={`@${review.reviewer}`} data-event-click-tracking="ItemReviews|ReviewerLink">{review.reviewer}</AnchorDetails>
                                     -
                                     <span alt={`${review.stars} out of 5 stars`} title={`${review.stars} out of 5 stars`}>
                                         { ['*','*','*','*','*'].slice(0,review.stars).map(x =>
@@ -357,83 +306,13 @@ export default class Details extends ArchiveBase {
                     </div>{/*--/.col-md-10--*/}
                     <div class="col-sm-4 thats-right item-details-archive-info">
                         {/*TODO need section class=boxy item-stats-summary- not obvious where data from, its not in metadata */}
-                        <section class="boxy item-download-options">
-                            <div class="download-button" role="heading" aria-level="5">DOWNLOAD OPTIONS</div>
-                            {Object.keys(downloadableFilesDict).map(k => (
-                                <div class="format-group">
-                                    <div class="summary-rite">
-                                        <a class="stealth" source={downloadableFilesDict[k]} onclick="Nav.nav_download(this)"
-                                           title={k}>
-                                            <span class="hover-badge-stealth"><span class="iconochive-download" aria-hidden="true"></span><span class="sr-only">download</span>{downloadableFilesDict[k].length} files</span>
-                                        </a>
-                                    </div>
-                                    <a class="format-summary download-pill"
-                                        source={downloadableFilesDict[k]}
-                                        onclick="Nav.nav_download(this)"
-                                        title={k}
-                                        data-toggle="tooltip" data-placement="auto left" data-container="body" target="_blank">{/*--new window to persist dweb--*/}
-                                        {AICUtil.formats("format", k).downloadable} <span class="iconochive-download" aria-hidden="true"></span><span class="sr-only">download</span>
-                                    </a>
-                                </div>
-
-                            ))}
-            
-                            <div class="show-all">
-                                <div class="pull-right">
-                                    <a class="boxy-ttl hover-badge" href={compressURL}><span class="iconochive-download"
-                                                                                             aria-hidden="true"></span><span
-                                            class="sr-only">download</span> {filesCount} Files</a><br/>
-                                    <a class="boxy-ttl hover-badge" href={compressAllURL}><span class="iconochive-download"
-                                                                                                aria-hidden="true"></span><span
-                                            class="sr-only">download</span> {originalFilesCount} Original</a><br/>
-                                </div>
-                                <a class="boxy-ttl" href={downloadURL}>SHOW ALL</a>{/*Link absolute, but will be captured by onclick*/}
-                                <br clear="all" class="clearfix"/>
-                            </div>
-                        </section>
-                        <CollectionList collections={collections} collectionTitles={collectionTitles}/>
-                        {/*TODO need boxy item-upload-info - its not obvious, on commute its the adder field, on mbid its derivation
-                        of uploader which is email, on text its ___ */}
+                        <DetailsDownloadOptions identifier={itemid} files={this.files} files_count={this.files_count}/>
+                        <DetailsCollectionListWrapper collections={collections} collectionTitles={collectionTitles}/>
+                        {/* <DetailsUploaderBox identifier={} name={} date={}> see https://github.com/internetarchive/dweb-archive/issues/24 */}
                     </div>{/*--/.col-md-2--*/}
                 </div>{/*--/.row--*/}
             {/*--//.container-ia--*/} </div>
         );
-    }
-
-    itemDetailsAlsoFound() {
-        if (!this.itemid) return undefined; // No related to home page, TODO maybe other places dont have also found = e.g. collections
-        const el = (
-            <div id="also-found" className="container container-ia width-max" data-identifier={this.itemid} ></div>
-            );
-        this.relatedItems({wantStream:false, wantMembers:true}, (err, searchmembers) => {
-            if (!err) { // If there is an error then fetch_json will have reported it, and can just ignore it here and not display
-                // noinspection JSUnresolvedVariable
-                this.loadDetailsAlsoFound(el, this.itemid, searchmembers);  // Asynchronous
-            }
-        });
-        return el;
-    }
-    loadDetailsAlsoFound(el, itemid, results) {
-        el.appendChild( (
-            <div className="row">
-                <div className="col-xs-12 tilebars" style="display: block;">
-                    <h5 className="small-label">SIMILAR ITEMS (based on metadata){/*<span id="playplayset">
-                        *<a data-reactroot="" className="stealth" href="#play-items" data-event-click-tracking="Playset|PlayAllLink"><span
-                        className="iconochive-play" aria-hidden="true"></span><span className="sr-only">play</span><span
-                        className="hidden-xs-span"> Play All</span><br></a></span>*/}</h5>
-                    <div id="also-found-result">
-                        <section data-reactroot="" aria-label="Related Items">
-
-                                { results.map(member => // Note this is odd - results normally encloses all teh tasks, but AJS.tiler doesnt seem to work without this
-                                    <div className="results" style={{visibility: "visible"}}>
-                                        <TileComponent member={member}/>
-                                    </div>
-                                    ) }
-                        </section>
-                    </div>
-                </div>
-            </div>
-        ) )
     }
 
     useBookReader() {

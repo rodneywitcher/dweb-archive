@@ -5,13 +5,13 @@ module.exports = {
     module: {
             rules: [
                 {
-                    test: /\.js$/,
-                    exclude: /(node_modules|bower_components)/,
+                    test: /\.js[x]*$/,
+                    exclude: /(node_modules\/[a-z]|@[a-hj-z]|bower_components)/, //TODO-IAUX only trying to not-exclude @internetarchive
                     use: {
-                        loader: 'babel-loader'
-                        //options: {
-                        //    presets: ['@babel/preset-env']
-                        //}
+                        loader: 'babel-loader',
+                        options: {
+                            presets: ['@babel/preset-react', '@babel/preset-env'],
+                        }
                     }
                 }
             ]
@@ -68,5 +68,8 @@ module.exports = {
             ],
             { }
         )
-    ]
+    ],
+    resolve: {
+        extensions: ['.js', '.jsx']
+    }
 };

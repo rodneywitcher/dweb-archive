@@ -1,11 +1,13 @@
 import React from './ReactFake';
 
-require('babel-core/register')({ presets: ['env', 'react']}); // ES6 JS below!
 
 const canonicaljson = require('@stratumn/canonicaljson');
 
 import ArchiveBase from './ArchiveBase';
-import TileComponent from './components/TileComponent';
+import {ScrollableTileGrid} from "@internetarchive/ia-components/index.js";
+import {NavWrap} from '@internetarchive/ia-components/index.js';
+import {AnchorModalGo} from './components/ModalGoFake';
+import {AJS_on_dom_loaded} from "./Util";
 
 /* Section to ensure node and browser able to use Headers, Request and Fetch */
 /*
@@ -35,7 +37,7 @@ export default class Search extends ArchiveBase {
     Inherited from ArchiveBase: item
     items   List of items found
      */
-    constructor({query='*:*', sort='', and='', rows=searchConfig.rows, page=1, metaapi=undefined, itemid=undefined}={}) { //TODO-IPFSIMAGE Remove
+    constructor({query=undefined, sort='', and='', rows=searchConfig.rows, page=1, metaapi=undefined, itemid=undefined}={}) { //TODO-IPFSIMAGE Remove
         super({itemid, metaapi});
         if (typeof(query) === "object") { // form { creator: "Foo bar" ... }
             // This next line uses stringify instead of toString() because we want  '"abc"' and '1' i.e. quotes if its a string
@@ -48,25 +50,13 @@ export default class Search extends ArchiveBase {
         this.page = page;
     }
 
-    static searchMore(elAnchor) {
-        elAnchor.source.more(); // Note this will correctly hit subclasses such as Home
+    render(res) { // See other DUPLICATEDCODE#001
+        var els = this.wrap();    // Build the els
+        $('body').addClass('bgEEE'); //TODO remove jquery dependency
+        React.domrender(els, res);  //Put the els into the page
+        this.archive_setup_push(); // Subclassed function to setup stuff for after loading.
+        AJS_on_dom_loaded(); // Runs code pushed archive_setup - needed for image if "super" this, put it after superclasses
     }
-
-    async more() {
-        AJS.more_searching = true;
-        this.page++;
-        const el = document.getElementById("appendTiles"); // Get the el, before the search in case user clicks away we add to right place
-        this.fetch_query({}, (err, newmembers)=> {  // Appends to this.members but returns just the new ones
-            if (err) { // If there is an error, just ignore it but un-increment page
-                this.page--;
-            } else {
-                newmembers.forEach(member => React.addKids(el, <TileComponent member={member}/>));
-                AJS.tiler();
-            }
-            AJS.more_searching = false;
-        })
-    }
-
     wrap() {
         /* Wrap the content up: wrap ( TODO-DONATE | navwrap |
         TODO-DETAILS need stuff before nav-wrap1 and after detailsabout and need to check this against Search and Collection examples
@@ -74,7 +64,7 @@ export default class Search extends ArchiveBase {
          */
         return (
             <div id="wrap">
-                { new Nav().navwrap() }
+                <NavWrap item={this}/>
                 {/*TODO - follow structure used by Details and check matches archive.html/details examples */}
                 {/*--Begin page content --*/}
                 <div class="container container-ia">
@@ -90,6 +80,7 @@ export default class Search extends ArchiveBase {
     }
 
     rowColumnsItems() {
+        // Subclassed version in Local
         /* Output the columns-items, wrapped in a row - this will then be wrapped differently for Collections (tabbed) and Search (not) */
         const encodedQuery = encodeURIComponent(this.query);
         return ( !(this.members && this.members.length) ? undefined :  /* If no members, probably a query failed so dont display */
@@ -170,32 +161,8 @@ export default class Search extends ArchiveBase {
                                 </div>{/*--/.sortbar--*/}
                                 <div class="sortbar-rule"></div>
                             {/*--/.co-top-row--*/}
-
-
-                            <div style="position:relative">
-                                <div id="ikind-search" class="ikind in">
-
-                                    <div class="results" id="appendTiles">
-                                        <div class="item-ia mobile-header hidden-tiles" data-id="__mobile_header__">
-                                            <div class="views C C1"> <span class="iconochive-eye" aria-hidden="true"></span><span class="sr-only">eye</span> </div>
-                                            <div class="C234">
-                                                <div class="C C2">Title</div>
-                                                <div class="pubdate C C3"> <div> <div>Date Archived</div> </div> </div>
-                                                <div class="by C C4">Creator</div>
-                                            </div>
-                                            <div class="C C5"></div>
-                                        </div>
-                                        {this.members.map( member=> // Note rendering tiles is quick, its the fetch of the img (async) which is slow.
-                                            <TileComponent member={member}/>
-                                        )}
-                                    </div>{/*--/.results--*/}
-                                    <center class="more_search">
-                                    {/*--TODO-DETAILS check what is happening in AJS.more_search with this URL and can use page: this.page+1--*/}
-                                    <a class="btn btn-info btn-sm" style="visibility:hidden" source={this} onclick="return Nav.searchMore(this)" href="#">MORE RESULTS</a><br/>
-                                    <span class="more-search-fetching">Fetching more results <img src="./images/loading.gif"/></span>
-                                    </center>
-                                </div>
-                            </div>
+                            {/*-- THIS IS THE MAIN CONTENT, A GRID OF TILES --*/}
+                            <ScrollableTileGrid item={this}/>
                         </div>{/*--.columns-items--*/}
                     {/*--/.row--*/}</div>
                 );
@@ -208,17 +175,14 @@ export default class Search extends ArchiveBase {
             AJS.lists_v_tiles_setup('search');  //TODO-DETAILS this line should for example be 'account' for Account
             AJS.popState('search');
             $('div.ikind').css({visibility:'visible'});
-            AJS.tiler();      // Note Traceys code had AJS.tiler('#ikind-search') but Search and Collections examples have it with no args
+            //AJS.tiler();      // Note Traceys code had AJS.tiler('#ikind-search') but Search and Collections examples have it with no args
             $(window).on('resize  orientationchange', function(evt){
                 clearTimeout(AJS.node_search_throttler);
                 AJS.node_search_throttler = setTimeout(AJS.tiler, 250);
             });
             // register for scroll updates (for infinite search results)
-            $(window).scroll(AJS.scrolled);
+            // $(window).scroll(AJS.scrolled); //Now done in ScrollableTileGrid
         });
-    }
-    browserBefore() {   // OVERRIDDEN in Collection.js subclass
-        $('body').addClass('bgEEE');
     }
 
     banner() { // On Search "banner" is a search form  OVERRIDDEN in Collection.js subclass
@@ -289,11 +253,11 @@ export default class Search extends ArchiveBase {
                     </div>
                     <div id="search-actions" class="col-sm-2 col-md-2 col-lg-2">
                         <span class="iconochive-share" aria-hidden="true"></span><span class="sr-only">share</span> Share<br/>
-                        <a class="stealth"
+                        <AnchorModalGo className="stealth"
                            href={addBookmarkURL}
-                           onclick="return AJS.modal_go(this,{favorite:1})"
+                           opts={{favorite:1}}
                            data-target="#confirm-modal"><span class="iconochive-favorite" aria-hidden="true"></span><span
-                                class="sr-only">favorite</span> Favorite</a><br/>
+                                className="sr-only">favorite</span> Favorite</AnchorModalGo><br/>
                     </div>
                 </div>{/*--/.row--*/}
             </div>{/*--/.container--*/}
